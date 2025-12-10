@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robot Dashboard Pro</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        background: '#0d0d0d',
+                        surface: '#1a1a1a',
+                        primary: '#3b82f6',
+                        secondary: '#64748b',
+                        success: '#22c55e',
+                        danger: '#ef4444',
+                        warning: '#f59e0b',
+                        border: '#262626'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d0d0d;
+            color: #e5e5e5;
+        }
+        .glass-panel {
+            background: rgba(26, 26, 26, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .sidebar-item {
+            transition: all 0.2s ease;
+        }
+        .sidebar-item:hover, .sidebar-item.active {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3b82f6;
+            border-right: 3px solid #3b82f6;
+        }
+        .card-hover {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0d0d0d;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #262626;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #404040;
+        }
+        
+        /* Mobile Sidebar Transition */
+        @media (max-width: 768px) {
+            #sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+                position: fixed;
+                height: 100%;
+                z-index: 50;
+            }
+            #sidebar.open {
+                transform: translateX(0);
+            }
+            #overlay {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 40;
+                backdrop-filter: blur(4px);
+            }
+            #overlay.active {
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body class="h-screen flex overflow-hidden">
+
+    <!-- Mobile Overlay -->
+    <div id="overlay" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="w-64 bg-surface border-r border-border flex flex-col z-50 md:relative md:translate-x-0">
+        <div class="p-6 border-b border-border flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-lg shadow-primary/20">
+                    <i class="fa-solid fa-robot text-white text-sm"></i>
+                </div>
+                <h1 class="font-bold text-lg tracking-tight">Robot<span class="text-primary">Dash</span></h1>
+            </div>
+            <!-- Close button for mobile -->
+            <button onclick="toggleSidebar()" class="md:hidden text-secondary hover:text-white">
+                <i class="fa-solid fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <nav class="flex-1 overflow-y-auto py-4">
+            <div class="px-4 mb-2 text-xs font-semibold text-secondary uppercase tracking-wider">Menu Principal</div>
+            <a href="#" onclick="showPage('dashboard'); closeSidebarMobile()" id="nav-dashboard" class="sidebar-item active flex items-center gap-3 px-6 py-3 text-sm font-medium text-gray-300 hover:text-white">
+                <i class="fa-solid fa-chart-line w-5"></i> Dashboard
+            </a>
+            <a href="#" onclick="showPage('results'); closeSidebarMobile()" id="nav-results" class="sidebar-item flex items-center gap-3 px-6 py-3 text-sm font-medium text-gray-300 hover:text-white">
+                <i class="fa-solid fa-trophy w-5"></i> Resultados
+            </a>
+            <a href="#" onclick="checkAdminAccess(); closeSidebarMobile()" id="nav-admin" class="sidebar-item flex items-center gap-3 px-6 py-3 text-sm font-medium text-gray-300 hover:text-white">
+                <i class="fa-solid fa-lock w-5"></i> Administração
+            </a>
+
+            <div class="mt-8 px-4 mb-2 text-xs font-semibold text-secondary uppercase tracking-wider">Robôs Ativos</div>
+            <div id="robot-list" class="space-y-1">
+                <!-- Lista de robôs será gerada via JS -->
+            </div>
+        </nav>
+
+        <div class="p-4 border-t border-border bg-surface/50">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-xs text-secondary font-medium">Cotação USD</span>
+                <button onclick="updateDollarRate()" class="text-xs text-primary hover:underline flex items-center gap-1">
+                    <i class="fa-solid fa-rotate"></i> Atualizar
+                </button>
+            </div>
+            <div class="flex items-center gap-2 bg-background rounded-md p-2 border border-border">
+                <span class="text-secondary text-sm">R$</span>
+                <input type="number" id="dollar-rate" value="5.00" step="0.01" class="bg-transparent text-sm font-mono w-full focus:outline-none text-white" onchange="manualUpdateRate(this.value)">
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col overflow-hidden relative w-full">
+        <!-- Header -->
+        <header class="h-16 bg-surface/80 backdrop-blur-md border-b border-border flex items-center justify-between px-4 md:px-8 z-10 shrink-0">
+            <div class="flex items-center gap-4">
+                <!-- Mobile Menu Button -->
+                <button onclick="toggleSidebar()" class="md:hidden text-white p-2 -ml-2">
+                    <i class="fa-solid fa-bars text-xl"></i>
+                </button>
+                <h2 id="page-title" class="text-lg md:text-xl font-semibold text-white truncate">Dashboard Geral</h2>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <div class="text-sm text-secondary hidden md:block">
+                    <i class="fa-regular fa-calendar mr-2"></i> <span id="current-date"></span>
+                </div>
+                <div class="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-xs font-bold text-white shadow-lg">
+                    AD
+                </div>
+            </div>
+        </header>
+
+        <!-- Content Pages -->
+        <div class="flex-1 overflow-y-auto p-4 md:p-8 relative w-full">
+            
+            <!-- Dashboard Page -->
+            <div id="page-dashboard" class="space-y-6 animate-fade-in pb-20 md:pb-0">
+                <!-- KPI Cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                    <div class="glass-panel rounded-xl p-6 card-hover border-l-4 border-primary">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <p class="text-sm text-secondary font-medium">Lucro Total</p>
+                                <h3 class="text-2xl font-bold text-white mt-1" id="kpi-profit">R$ 0,00</h3>
+                            </div>
+                            <div class="p-2 bg-primary/10 rounded-lg text-primary">
+                                <i class="fa-solid fa-wallet"></i>
+                            </div>
+                        </div>
+                        <div class="text-xs text-success flex items-center gap-1">
+                            <i class="fa-solid fa-arrow-trend-up"></i> <span id="kpi-profit-growth">+0%</span> vs mês anterior
+                        </div>
+                    </div>
+
+                    <div class="glass-panel rounded-xl p-6 card-hover border-l-4 border-purple-500">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <p class="text-sm text-secondary font-medium">Investimento</p>
+                                <h3 class="text-2xl font-bold text-white mt-1" id="kpi-investment">R$ 0,00</h3>
+                            </div>
+                            <div class="p-2 bg-purple-500/10 rounded-lg text-purple-500">
+                                <i class="fa-solid fa-sack-dollar"></i>
+                            </div>
+                        </div>
+                        <div class="text-xs text-secondary">Total investido</div>
+                    </div>
+
+                    <div class="glass-panel rounded-xl p-6 card-hover border-l-4 border-success">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <p class="text-sm text-secondary font-medium">ROI Médio</p>
+                                <h3 class="text-2xl font-bold text-white mt-1" id="kpi-roi">0%</h3>
+                            </div>
+                            <div class="p-2 bg-success/10 rounded-lg text-success">
+                                <i class="fa-solid fa-percent"></i>
+                            </div>
+                        </div>
+                        <div class="text-xs text-secondary">Retorno sobre investimento</div>
+                    </div>
+
+                    <div class="glass-panel rounded-xl p-6 card-hover border-l-4 border-warning">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <p class="text-sm text-secondary font-medium">Win Rate</p>
+                                <h3 class="text-2xl font-bold text-white mt-1" id="kpi-winrate">0%</h3>
+                            </div>
+                            <div class="p-2 bg-warning/10 rounded-lg text-warning">
+                                <i class="fa-solid fa-crosshairs"></i>
+                            </div>
+                        </div>
+                        <div class="text-xs text-secondary">Taxa de acerto média</div>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="glass-panel rounded-xl p-4 md:p-6 lg:col-span-2">
+                        <h3 class="text-lg font-semibold text-white mb-6">Evolução de Lucro</h3>
+                        <div class="h-64 md:h-80">
+                            <canvas id="profitChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="glass-panel rounded-xl p-4 md:p-6">
+                        <h3 class="text-lg font-semibold text-white mb-6">Comparativo ROI</h3>
+                        <div class="h-64 md:h-80 flex items-center justify-center">
+                            <canvas id="roiChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Table -->
+                <div class="glass-panel rounded-xl overflow-hidden">
+                    <div class="p-6 border-b border-border">
+                        <h3 class="text-lg font-semibold text-white">Detalhamento por Período</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm min-w-[600px]">
+                            <thead class="bg-surface text-secondary uppercase text-xs font-semibold">
+                                <tr>
+                                    <th class="px-6 py-4">Robô</th>
+                                    <th class="px-6 py-4">Mês</th>
+                                    <th class="px-6 py-4 text-right">Investimento</th>
+                                    <th class="px-6 py-4 text-right">Lucro</th>
+                                    <th class="px-6 py-4 text-right">ROI</th>
+                                    <th class="px-6 py-4 text-center">Win Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dashboard-table-body" class="divide-y divide-border">
+                                <!-- Linhas geradas via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Page -->
+            <div id="page-results" class="hidden space-y-8 animate-fade-in pb-20 md:pb-0">
+                <div class="text-center mb-8 md:mb-12">
+                    <h2 class="text-2xl md:text-3xl font-bold text-white mb-2">Top Performers</h2>
+                    <p class="text-secondary">Os robôs com melhor desempenho geral</p>
+                </div>
+
+                <div id="top-robots-container" class="grid grid-cols-1 md:grid-cols-3 gap-8 items-end max-w-5xl mx-auto px-4">
+                    <!-- Cards gerados via JS -->
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-12">
+                    <div class="glass-panel rounded-xl p-4 md:p-6">
+                        <h3 class="text-lg font-semibold text-white mb-6">Ranking por Lucro Total</h3>
+                        <div class="h-64 md:h-80">
+                            <canvas id="rankingChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="glass-panel rounded-xl p-4 md:p-6">
+                        <h3 class="text-lg font-semibold text-white mb-6">Análise de Eficiência (Win Rate vs ROI)</h3>
+                        <div class="h-64 md:h-80">
+                            <canvas id="scatterChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Page -->
+            <div id="page-admin" class="hidden space-y-6 animate-fade-in pb-20 md:pb-0">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg font-semibold text-white">Gerenciamento de Robôs</h3>
+                    <button onclick="openModal('robot-modal')" class="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> <span class="hidden sm:inline">Novo Robô</span>
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Lista de Robôs para Edição -->
+                    <div class="glass-panel rounded-xl p-4 md:p-6 lg:col-span-1 h-auto lg:h-[calc(100vh-200px)] overflow-y-auto">
+                        <h4 class="text-sm font-semibold text-secondary uppercase mb-4">Selecione para Editar</h4>
+                        <div id="admin-robot-list" class="space-y-2">
+                            <!-- Lista gerada via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Formulário de Edição -->
+                    <div class="glass-panel rounded-xl p-4 md:p-6 lg:col-span-2">
+                        <div id="edit-form-container" class="hidden h-full flex flex-col">
+                            <div class="flex justify-between items-center mb-6 pb-4 border-b border-border">
+                                <h3 class="text-xl font-bold text-white" id="editing-robot-name">Editar Robô</h3>
+                                <button onclick="deleteRobot()" class="text-danger hover:bg-danger/10 px-3 py-1 rounded text-sm transition-colors">
+                                    <i class="fa-solid fa-trash"></i> Excluir
+                                </button>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                                <div>
+                                    <label class="block text-xs text-secondary mb-1">Nome</label>
+                                    <input type="text" id="edit-name" class="w-full bg-background border border-border rounded p-2 text-white text-sm focus:border-primary focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-secondary mb-1">Cor</label>
+                                    <input type="color" id="edit-color" class="w-full h-9 bg-background border border-border rounded cursor-pointer">
+                                </div>
+                                <div class="sm:col-span-2">
+                                    <label class="block text-xs text-secondary mb-1">Descrição</label>
+                                    <textarea id="edit-desc" rows="2" class="w-full bg-background border border-border rounded p-2 text-white text-sm focus:border-primary focus:outline-none"></textarea>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-between items-center mb-4">
+                                <h4 class="text-sm font-semibold text-white">Dados de Performance</h4>
+                                <button onclick="addPeriod()" class="text-primary text-xs hover:underline">+ Adicionar Mês</button>
+                            </div>
+
+                            <div class="flex-1 overflow-y-auto border border-border rounded-lg bg-background/50 min-h-[200px]">
+                                <table class="w-full text-sm text-left min-w-[500px]">
+                                    <thead class="bg-surface text-xs text-secondary uppercase sticky top-0">
+                                        <tr>
+                                            <th class="px-4 py-2">Mês</th>
+                                            <th class="px-4 py-2">Invest.</th>
+                                            <th class="px-4 py-2">Lucro</th>
+                                            <th class="px-4 py-2">Win Rate</th>
+                                            <th class="px-4 py-2">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="edit-periods-body" class="divide-y divide-border">
+                                        <!-- Linhas de input geradas via JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="mt-6 flex justify-end gap-3 pt-4 border-t border-border">
+                                <button onclick="saveRobotChanges()" class="bg-success hover:bg-green-600 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg shadow-success/20 w-full sm:w-auto">
+                                    Salvar Alterações
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="empty-state-admin" class="h-full flex flex-col items-center justify-center text-secondary py-12 lg:py-0">
+                            <i class="fa-solid fa-robot text-4xl mb-4 opacity-20"></i>
+                            <p>Selecione um robô ao lado para editar</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Modal Novo Robô -->
+    <div id="robot-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-surface border border-border rounded-xl p-6 w-full max-w-md shadow-2xl transform transition-all scale-100">
+            <h3 class="text-xl font-bold text-white mb-4">Novo Robô</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs text-secondary mb-1">Nome do Robô</label>
+                    <input type="text" id="new-robot-name" class="w-full bg-background border border-border rounded p-2 text-white focus:border-primary focus:outline-none" placeholder="Ex: Scalper Pro">
+                </div>
+                <div>
+                    <label class="block text-xs text-secondary mb-1">Cor de Identificação</label>
+                    <input type="color" id="new-robot-color" class="w-full h-10 bg-background border border-border rounded cursor-pointer" value="#3b82f6">
+                </div>
+                <div>
+                    <label class="block text-xs text-secondary mb-1">Descrição (Opcional)</label>
+                    <textarea id="new-robot-desc" class="w-full bg-background border border-border rounded p-2 text-white focus:border-primary focus:outline-none" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 mt-6">
+                <button onclick="closeModal('robot-modal')" class="text-gray-400 hover:text-white px-4 py-2 text-sm">Cancelar</button>
+                <button onclick="createNewRobot()" class="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium">Criar Robô</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Login -->
+    <div id="login-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-surface border border-border rounded-xl p-8 w-full max-w-sm shadow-2xl transform transition-all scale-100 text-center">
+            <div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                <i class="fa-solid fa-lock text-primary text-2xl"></i>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-2">Acesso Restrito</h3>
+            <p class="text-secondary text-sm mb-6">Digite a senha de administrador para continuar.</p>
+            
+            <div class="space-y-4">
+                <input type="password" id="admin-password" class="w-full bg-background border border-border rounded-lg p-3 text-white focus:border-primary focus:outline-none text-center tracking-widest" placeholder="••••••••" onkeyup="if(event.key === 'Enter') verifyPassword()">
+                <button onclick="verifyPassword()" class="w-full bg-primary hover:bg-blue-600 text-white py-3 rounded-lg font-medium transition-colors shadow-lg shadow-primary/20">
+                    Acessar Painel
+                </button>
+            </div>
+            <p id="login-error" class="text-danger text-xs mt-4 hidden">Senha incorreta. Tente novamente.</p>
+            <button onclick="closeModal('login-modal')" class="text-secondary text-xs mt-6 hover:text-white">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // --- DATA STORE ---
+        const defaultRobots = [
+            {
+                id: '1',
+                name: 'Robô Scalper',
+                color: '#3b82f6',
+                description: 'Operações rápidas em M1/M5',
+                data: [
+                    { month: 'Jan', investment: 1000, profit: 150, winRate: 65, trades: 120 },
+                    { month: 'Fev', investment: 1150, profit: 180, winRate: 68, trades: 110 },
+                    { month: 'Mar', investment: 1330, profit: -50, winRate: 45, trades: 130 },
+                    { month: 'Abr', investment: 1280, profit: 200, winRate: 70, trades: 105 },
+                ]
+            },
+            {
+                id: '2',
+                name: 'Robô Swing',
+                color: '#8b5cf6',
+                description: 'Operações de médio prazo',
+                data: [
+                    { month: 'Jan', investment: 2000, profit: 100, winRate: 55, trades: 20 },
+                    { month: 'Fev', investment: 2100, profit: 120, winRate: 60, trades: 18 },
+                    { month: 'Mar', investment: 2220, profit: 150, winRate: 62, trades: 22 },
+                    { month: 'Abr', investment: 2370, profit: 180, winRate: 65, trades: 15 },
+                ]
+            },
+            {
+                id: '3',
+                name: 'Robô DayTrade',
+                color: '#22c55e',
+                description: 'Operações diárias em índice',
+                data: [
+                    { month: 'Jan', investment: 1500, profit: 300, winRate: 75, trades: 50 },
+                    { month: 'Fev', investment: 1800, profit: 400, winRate: 78, trades: 55 },
+                    { month: 'Mar', investment: 2200, profit: 350, winRate: 72, trades: 60 },
+                    { month: 'Abr', investment: 2550, profit: 500, winRate: 80, trades: 58 },
+                ]
+            }
+        ];
+
+        let robots = JSON.parse(localStorage.getItem('robots')) || defaultRobots;
+        let selectedRobotIds = JSON.parse(localStorage.getItem('selectedRobotIds')) || [robots[0].id];
+        let dollarRate = parseFloat(localStorage.getItem('dollarRate')) || 5.00;
+        let editingRobotId = null;
+        let isAdminAuthenticated = false; // Controle de sessão
+
+        // --- CHARTS INSTANCES ---
+        let profitChartInstance = null;
+        let roiChartInstance = null;
+        let rankingChartInstance = null;
+        let scatterChartInstance = null;
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('current-date').textContent = new Date().toLocaleDateString('pt-BR');
+            document.getElementById('dollar-rate').value = dollarRate.toFixed(2);
+            
+            renderSidebar();
+            updateDashboard();
+            
+            // Auto update dollar rate
+            fetchDollarRate();
+        });
+
+        // --- MOBILE SIDEBAR ---
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+        }
+
+        function closeSidebarMobile() {
+            if (window.innerWidth < 768) {
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('overlay');
+                sidebar.classList.remove('open');
+                overlay.classList.remove('active');
+            }
+        }
+
+        // --- NAVIGATION ---
+        function showPage(pageId) {
+            // Hide all pages
+            document.querySelectorAll('[id^="page-"]').forEach(el => el.classList.add('hidden'));
+            // Show selected page
+            document.getElementById(`page-${pageId}`).classList.remove('hidden');
+            
+            // Update sidebar active state
+            document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active', 'text-white', 'border-r-4', 'border-primary', 'bg-primary/10'));
+            const activeLink = document.getElementById(`nav-${pageId}`);
+            if(activeLink) activeLink.classList.add('active');
+
+            // Update header title
+            const titles = {
+                'dashboard': 'Dashboard Geral',
+                'results': 'Resultados Consolidados',
+                'admin': 'Administração do Sistema'
+            };
+            document.getElementById('page-title').textContent = titles[pageId];
+
+            // Specific page logic
+            if (pageId === 'dashboard') updateDashboard();
+            if (pageId === 'results') updateResults();
+            if (pageId === 'admin') renderAdminList();
+        }
+
+        // --- AUTHENTICATION ---
+        function checkAdminAccess() {
+            if (isAdminAuthenticated) {
+                showPage('admin');
+            } else {
+                openModal('login-modal');
+                document.getElementById('admin-password').value = '';
+                document.getElementById('login-error').classList.add('hidden');
+                document.getElementById('admin-password').focus();
+            }
+        }
+
+        function verifyPassword() {
+            const password = document.getElementById('admin-password').value;
+            // Senha padrão: #de3sw2aq1
+            if (password === '#de3sw2aq1') {
+                isAdminAuthenticated = true;
+                closeModal('login-modal');
+                showPage('admin');
+            } else {
+                document.getElementById('login-error').classList.remove('hidden');
+                document.getElementById('admin-password').classList.add('border-danger');
+            }
+        }
+
+        // --- SIDEBAR LOGIC ---
+        function renderSidebar() {
+            const container = document.getElementById('robot-list');
+            container.innerHTML = '';
+
+            robots.forEach(robot => {
+                const isSelected = selectedRobotIds.includes(robot.id);
+                const div = document.createElement('div');
+                div.className = `px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors ${isSelected ? 'bg-white/5' : ''}`;
+                div.onclick = () => toggleRobotSelection(robot.id);
+                
+                div.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-3 h-3 rounded-full shadow-sm" style="background-color: ${robot.color}"></div>
+                        <span class="text-sm text-gray-300 ${isSelected ? 'font-medium text-white' : ''}">${robot.name}</span>
+                    </div>
+                    ${isSelected ? '<i class="fa-solid fa-check text-primary text-xs"></i>' : ''}
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function toggleRobotSelection(id) {
+            if (selectedRobotIds.includes(id)) {
+                if (selectedRobotIds.length > 1) {
+                    selectedRobotIds = selectedRobotIds.filter(rid => rid !== id);
+                }
+            } else {
+                selectedRobotIds.push(id);
+            }
+            localStorage.setItem('selectedRobotIds', JSON.stringify(selectedRobotIds));
+            renderSidebar();
+            updateDashboard();
+        }
+
+        // --- DASHBOARD LOGIC ---
+        function updateDashboard() {
+            const selectedRobots = robots.filter(r => selectedRobotIds.includes(r.id));
+            
+            // Calculate KPIs
+            let totalProfit = 0;
+            let totalInvestment = 0;
+            let totalTrades = 0;
+            let weightedWinRate = 0;
+
+            selectedRobots.forEach(robot => {
+                robot.data.forEach(d => {
+                    totalProfit += d.profit;
+                    totalInvestment += d.investment;
+                    totalTrades += d.trades;
+                    weightedWinRate += (d.winRate * d.trades);
+                });
+            });
+
+            const avgWinRate = totalTrades > 0 ? (weightedWinRate / totalTrades) : 0;
+            const roi = totalInvestment > 0 ? ((totalProfit / totalInvestment) * 100) : 0;
+
+            // Update DOM
+            document.getElementById('kpi-profit').textContent = formatCurrency(totalProfit);
+            document.getElementById('kpi-investment').textContent = formatCurrency(totalInvestment);
+            document.getElementById('kpi-roi').textContent = roi.toFixed(2) + '%';
+            document.getElementById('kpi-winrate').textContent = avgWinRate.toFixed(1) + '%';
+            
+            // Colorize Profit
+            const profitEl = document.getElementById('kpi-profit');
+            profitEl.className = `text-2xl font-bold mt-1 ${totalProfit >= 0 ? 'text-success' : 'text-danger'}`;
+
+            renderCharts(selectedRobots);
+            renderTable(selectedRobots);
+        }
+
+        function renderCharts(selectedRobots) {
+            const ctxProfit = document.getElementById('profitChart').getContext('2d');
+            const ctxRoi = document.getElementById('roiChart').getContext('2d');
+
+            // Destroy old charts
+            if (profitChartInstance) profitChartInstance.destroy();
+            if (roiChartInstance) roiChartInstance.destroy();
+
+            // Prepare Data
+            const months = [...new Set(selectedRobots.flatMap(r => r.data.map(d => d.month)))];
+            
+            // Profit Chart
+            const profitDatasets = selectedRobots.map(robot => ({
+                label: robot.name,
+                data: months.map(m => {
+                    const d = robot.data.find(x => x.month === m);
+                    return d ? d.profit : 0;
+                }),
+                borderColor: robot.color,
+                backgroundColor: robot.color + '20',
+                tension: 0.4,
+                fill: true
+            }));
+
+            profitChartInstance = new Chart(ctxProfit, {
+                type: 'line',
+                data: { labels: months, datasets: profitDatasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#9ca3af' } } },
+                    scales: {
+                        y: { grid: { color: '#262626' }, ticks: { color: '#9ca3af' } },
+                        x: { grid: { display: false }, ticks: { color: '#9ca3af' } }
+                    }
+                }
+            });
+
+            // ROI Chart (Bar)
+            const roiDatasets = selectedRobots.map(robot => {
+                const totalInv = robot.data.reduce((acc, cur) => acc + cur.investment, 0);
+                const totalProf = robot.data.reduce((acc, cur) => acc + cur.profit, 0);
+                const roi = totalInv > 0 ? (totalProf / totalInv) * 100 : 0;
+                return { label: robot.name, data: [roi], backgroundColor: robot.color };
+            });
+
+            roiChartInstance = new Chart(ctxRoi, {
+                type: 'bar',
+                data: { 
+                    labels: ['ROI Total'], 
+                    datasets: selectedRobots.map(r => {
+                        const totalInv = r.data.reduce((acc, cur) => acc + cur.investment, 0);
+                        const totalProf = r.data.reduce((acc, cur) => acc + cur.profit, 0);
+                        const roi = totalInv > 0 ? (totalProf / totalInv) * 100 : 0;
+                        return {
+                            label: r.name,
+                            data: [roi],
+                            backgroundColor: r.color,
+                            borderColor: r.color,
+                            borderWidth: 1
+                        };
+                    })
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { color: '#9ca3af' } } },
+                    scales: {
+                        y: { grid: { color: '#262626' }, ticks: { color: '#9ca3af' } },
+                        x: { display: false }
+                    }
+                }
+            });
+        }
+
+        function renderTable(selectedRobots) {
+            const tbody = document.getElementById('dashboard-table-body');
+            tbody.innerHTML = '';
+
+            selectedRobots.forEach(robot => {
+                robot.data.forEach(d => {
+                    const roi = d.investment > 0 ? (d.profit / d.investment) * 100 : 0;
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-white/5 transition-colors';
+                    tr.innerHTML = `
+                        <td class="px-6 py-4 font-medium text-white flex items-center gap-2">
+                            <div class="w-2 h-2 rounded-full" style="background-color: ${robot.color}"></div>
+                            ${robot.name}
+                        </td>
+                        <td class="px-6 py-4 text-secondary">${d.month}</td>
+                        <td class="px-6 py-4 text-right text-gray-300">${formatCurrency(d.investment)}</td>
+                        <td class="px-6 py-4 text-right font-medium ${d.profit >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(d.profit)}</td>
+                        <td class="px-6 py-4 text-right text-gray-300">${roi.toFixed(2)}%</td>
+                        <td class="px-6 py-4 text-center">
+                            <span class="px-2 py-1 rounded text-xs font-medium ${d.winRate > 60 ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}">
+                                ${d.winRate}%
+                            </span>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            });
+        }
+
+        // --- RESULTS LOGIC ---
+        function updateResults() {
+            // Calculate performance for all robots
+            const performance = robots.map(r => {
+                const totalInv = r.data.reduce((acc, cur) => acc + cur.investment, 0);
+                const totalProf = r.data.reduce((acc, cur) => acc + cur.profit, 0);
+                const totalTrades = r.data.reduce((acc, cur) => acc + cur.trades, 0);
+                const weightedWinRate = r.data.reduce((acc, cur) => acc + (cur.winRate * cur.trades), 0);
+                
+                return {
+                    ...r,
+                    totalProfit: totalProf,
+                    roi: totalInv > 0 ? (totalProf / totalInv) * 100 : 0,
+                    avgWinRate: totalTrades > 0 ? (weightedWinRate / totalTrades) : 0
+                };
+            }).sort((a, b) => b.totalProfit - a.totalProfit);
+
+            // Render Top 3 Cards
+            const container = document.getElementById('top-robots-container');
+            container.innerHTML = '';
+            
+            const top3 = performance.slice(0, 3);
+            const medals = ['🥇', '🥈', '🥉'];
+            const heights = ['h-64', 'h-56', 'h-48']; // 1st taller
+            
+            // Reorder for visual podium (2nd, 1st, 3rd)
+            const podiumOrder = [top3[1], top3[0], top3[2]].filter(Boolean);
+
+            podiumOrder.forEach((robot, index) => {
+                const isFirst = robot === top3[0];
+                const medal = medals[performance.indexOf(robot)];
+                
+                const card = document.createElement('div');
+                card.className = `glass-panel rounded-xl p-6 flex flex-col items-center justify-center relative ${isFirst ? 'border-2 border-yellow-500 shadow-xl shadow-yellow-500/10 transform -translate-y-4' : ''}`;
+                card.innerHTML = `
+                    <div class="absolute -top-4 bg-surface border border-border rounded-full w-10 h-10 flex items-center justify-center text-xl shadow-lg">
+                        ${medal}
+                    </div>
+                    <div class="w-16 h-16 rounded-full mb-4 flex items-center justify-center text-2xl shadow-lg" style="background-color: ${robot.color}20; color: ${robot.color}">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <h3 class="font-bold text-white text-lg mb-1">${robot.name}</h3>
+                    <p class="text-success font-bold text-xl mb-4">${formatCurrency(robot.totalProfit)}</p>
+                    
+                    <div class="w-full grid grid-cols-2 gap-2 text-center text-xs">
+                        <div class="bg-white/5 rounded p-2">
+                            <div class="text-secondary">ROI</div>
+                            <div class="font-medium text-white">${robot.roi.toFixed(1)}%</div>
+                        </div>
+                        <div class="bg-white/5 rounded p-2">
+                            <div class="text-secondary">Win Rate</div>
+                            <div class="font-medium text-white">${robot.avgWinRate.toFixed(1)}%</div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            // Render Charts
+            renderResultsCharts(performance);
+        }
+
+        function renderResultsCharts(performance) {
+            const ctxRanking = document.getElementById('rankingChart').getContext('2d');
+            const ctxScatter = document.getElementById('scatterChart').getContext('2d');
+
+            if (rankingChartInstance) rankingChartInstance.destroy();
+            if (scatterChartInstance) scatterChartInstance.destroy();
+
+            // Ranking Chart
+            rankingChartInstance = new Chart(ctxRanking, {
+                type: 'bar',
+                data: {
+                    labels: performance.map(r => r.name),
+                    datasets: [{
+                        label: 'Lucro Total',
+                        data: performance.map(r => r.totalProfit),
+                        backgroundColor: performance.map(r => r.color),
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: '#262626' }, ticks: { color: '#9ca3af' } },
+                        y: { grid: { display: false }, ticks: { color: '#e5e5e5' } }
+                    }
+                }
+            });
+
+            // Scatter Chart
+            scatterChartInstance = new Chart(ctxScatter, {
+                type: 'scatter',
+                data: {
+                    datasets: performance.map(r => ({
+                        label: r.name,
+                        data: [{ x: r.avgWinRate, y: r.roi }],
+                        backgroundColor: r.color,
+                        pointRadius: 8,
+                        pointHoverRadius: 10
+                    }))
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { position: 'bottom', labels: { color: '#9ca3af' } },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => `${ctx.dataset.label}: Win ${ctx.raw.x}% / ROI ${ctx.raw.y.toFixed(1)}%`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { 
+                            title: { display: true, text: 'Win Rate (%)', color: '#64748b' },
+                            grid: { color: '#262626' }, 
+                            ticks: { color: '#9ca3af' } 
+                        },
+                        y: { 
+                            title: { display: true, text: 'ROI (%)', color: '#64748b' },
+                            grid: { color: '#262626' }, 
+                            ticks: { color: '#9ca3af' } 
+                        }
+                    }
+                }
+            });
+        }
+
+        // --- ADMIN LOGIC ---
+        function renderAdminList() {
+            const container = document.getElementById('admin-robot-list');
+            container.innerHTML = '';
+
+            robots.forEach(robot => {
+                const div = document.createElement('div');
+                div.className = `p-3 rounded-lg border border-border cursor-pointer hover:bg-white/5 transition-all flex items-center justify-between ${editingRobotId === robot.id ? 'bg-primary/10 border-primary' : 'bg-surface'}`;
+                div.onclick = () => loadRobotForEditing(robot.id);
+                
+                div.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-3 h-3 rounded-full" style="background-color: ${robot.color}"></div>
+                        <span class="text-sm font-medium text-white">${robot.name}</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-xs text-secondary"></i>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function loadRobotForEditing(id) {
+            editingRobotId = id;
+            const robot = robots.find(r => r.id === id);
+            
+            document.getElementById('empty-state-admin').classList.add('hidden');
+            document.getElementById('edit-form-container').classList.remove('hidden');
+            
+            document.getElementById('editing-robot-name').textContent = robot.name;
+            document.getElementById('edit-name').value = robot.name;
+            document.getElementById('edit-color').value = robot.color;
+            document.getElementById('edit-desc').value = robot.description || '';
+
+            renderEditPeriods(robot);
+            renderAdminList(); // Update active state
+        }
+
+        function renderEditPeriods(robot) {
+            const tbody = document.getElementById('edit-periods-body');
+            tbody.innerHTML = '';
+
+            robot.data.forEach((d, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-2"><input type="text" value="${d.month}" class="w-full bg-transparent border-b border-border focus:border-primary outline-none text-white" onchange="updatePeriodData(${index}, 'month', this.value)"></td>
+                    <td class="p-2"><input type="number" value="${d.investment}" class="w-full bg-transparent border-b border-border focus:border-primary outline-none text-white" onchange="updatePeriodData(${index}, 'investment', this.value)"></td>
+                    <td class="p-2"><input type="number" value="${d.profit}" class="w-full bg-transparent border-b border-border focus:border-primary outline-none text-white" onchange="updatePeriodData(${index}, 'profit', this.value)"></td>
+                    <td class="p-2"><input type="number" value="${d.winRate}" class="w-full bg-transparent border-b border-border focus:border-primary outline-none text-white" onchange="updatePeriodData(${index}, 'winRate', this.value)"></td>
+                    <td class="p-2 text-center">
+                        <button onclick="removePeriod(${index})" class="text-danger hover:text-red-400"><i class="fa-solid fa-times"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updatePeriodData(index, field, value) {
+            const robot = robots.find(r => r.id === editingRobotId);
+            if (field === 'month') robot.data[index][field] = value;
+            else robot.data[index][field] = parseFloat(value);
+        }
+
+        function addPeriod() {
+            const robot = robots.find(r => r.id === editingRobotId);
+            robot.data.push({ month: 'Novo', investment: 0, profit: 0, winRate: 0, trades: 0 });
+            renderEditPeriods(robot);
+        }
+
+        function removePeriod(index) {
+            const robot = robots.find(r => r.id === editingRobotId);
+            robot.data.splice(index, 1);
+            renderEditPeriods(robot);
+        }
+
+        function saveRobotChanges() {
+            const robot = robots.find(r => r.id === editingRobotId);
+            robot.name = document.getElementById('edit-name').value;
+            robot.color = document.getElementById('edit-color').value;
+            robot.description = document.getElementById('edit-desc').value;
+            
+            saveData();
+            renderAdminList();
+            renderSidebar(); // Update sidebar names/colors
+            alert('Alterações salvas com sucesso!');
+        }
+
+        function createNewRobot() {
+            const name = document.getElementById('new-robot-name').value;
+            const color = document.getElementById('new-robot-color').value;
+            const desc = document.getElementById('new-robot-desc').value;
+
+            if (!name) return alert('Nome é obrigatório');
+
+            const newRobot = {
+                id: Date.now().toString(),
+                name,
+                color,
+                description: desc,
+                data: []
+            };
+
+            robots.push(newRobot);
+            saveData();
+            closeModal('robot-modal');
+            renderAdminList();
+            renderSidebar();
+            loadRobotForEditing(newRobot.id);
+        }
+
+        function deleteRobot() {
+            if (!confirm('Tem certeza que deseja excluir este robô?')) return;
+            
+            robots = robots.filter(r => r.id !== editingRobotId);
+            selectedRobotIds = selectedRobotIds.filter(id => id !== editingRobotId);
+            
+            saveData();
+            editingRobotId = null;
+            document.getElementById('edit-form-container').classList.add('hidden');
+            document.getElementById('empty-state-admin').classList.remove('hidden');
+            renderAdminList();
+            renderSidebar();
+        }
+
+        // --- UTILS ---
+        function formatCurrency(value) {
+            const converted = value / dollarRate; // Convert to USD
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(converted);
+        }
+
+        function fetchDollarRate() {
+            fetch('https://api.exchangerate-api.com/v4/latest/USD')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.rates && data.rates.BRL) {
+                        dollarRate = data.rates.BRL;
+                        document.getElementById('dollar-rate').value = dollarRate.toFixed(2);
+                        localStorage.setItem('dollarRate', dollarRate);
+                        updateDashboard(); // Refresh values
+                    }
+                })
+                .catch(err => console.error('Erro ao buscar cotação:', err));
+        }
+
+        function manualUpdateRate(value) {
+            dollarRate = parseFloat(value);
+            localStorage.setItem('dollarRate', dollarRate);
+            updateDashboard();
+        }
+
+        function updateDollarRate() {
+            fetchDollarRate();
+            alert('Buscando cotação atualizada...');
+        }
+
+        function saveData() {
+            localStorage.setItem('robots', JSON.stringify(robots));
+            localStorage.setItem('selectedRobotIds', JSON.stringify(selectedRobotIds));
+        }
+
+        // --- MODAL ---
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
