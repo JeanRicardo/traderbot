@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Robot Dashboard Pro</title>
+    <title>Jean Faria</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -119,7 +119,7 @@
                 <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-lg shadow-primary/20">
                     <i class="fa-solid fa-robot text-white text-sm"></i>
                 </div>
-                <h1 class="font-bold text-lg tracking-tight">Robot<span class="text-primary">Dash</span></h1>
+                <h1 class="font-bold text-lg tracking-tight">Robo<span class="text-primary">Zaum</span></h1>
             </div>
             <!-- Close button for mobile -->
             <button onclick="toggleSidebar()" class="md:hidden text-secondary hover:text-white">
@@ -445,33 +445,33 @@
         const defaultRobots = [
             {
                 id: '1',
-                name: 'Robô Scalper',
+                name: 'Robô 1',
                 color: '#3b82f6',
-                description: 'Operações rápidas em M1/M5',
+                description: 'M1 - Lote 0.04 M15 - Lote 0.06',
                 data: [
-                    { month: 'Jan', investment: 1000, profit: 150, winRate: 65, trades: 120 },
-                    { month: 'Fev', investment: 1150, profit: 180, winRate: 68, trades: 110 },
-                    { month: 'Mar', investment: 1330, profit: -50, winRate: 45, trades: 130 },
-                    { month: 'Abr', investment: 1280, profit: 200, winRate: 70, trades: 105 },
+                    { month: 'Jan', investment: 3000, profit: 1080, winRate: 65, trades: 120 },
+                    { month: 'Fev', investment: 0, profit: 500, winRate: 68, trades: 110 },
+                    { month: 'Mar', investment: 0, profit: 600, winRate: 45, trades: 130 },
+                    { month: 'Abr', investment: 0, profit: 450, winRate: 70, trades: 105 },
                 ]
             },
             {
                 id: '2',
-                name: 'Robô Swing',
+                name: 'Robô 2',
                 color: '#8b5cf6',
-                description: 'Operações de médio prazo',
+                description: 'M1 - Lote 0.06',
                 data: [
-                    { month: 'Jan', investment: 2000, profit: 100, winRate: 55, trades: 20 },
+                    { month: 'Jan', investment: 2000, profit: 800, winRate: 55, trades: 20 },
                     { month: 'Fev', investment: 2100, profit: 120, winRate: 60, trades: 18 },
                     { month: 'Mar', investment: 2220, profit: 150, winRate: 62, trades: 22 },
-                    { month: 'Abr', investment: 2370, profit: 180, winRate: 65, trades: 15 },
+                    { month: 'Abr', investment: 2370, profit: 1400, winRate: 65, trades: 15 },
                 ]
             },
             {
                 id: '3',
-                name: 'Robô DayTrade',
+                name: 'Robô 3',
                 color: '#22c55e',
-                description: 'Operações diárias em índice',
+                description: 'M1 - Lote 0.08',
                 data: [
                     { month: 'Jan', investment: 1500, profit: 300, winRate: 75, trades: 50 },
                     { month: 'Fev', investment: 1800, profit: 400, winRate: 78, trades: 55 },
@@ -562,8 +562,8 @@
 
         function verifyPassword() {
             const password = document.getElementById('admin-password').value;
-            // Senha padrão: #de3sw2aq1
-            if (password === '#de3sw2aq1') {
+            // Senha padrão: admin123
+            if (password === 'admin123') {
                 isAdminAuthenticated = true;
                 closeModal('login-modal');
                 showPage('admin');
