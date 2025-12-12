@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jean Faria</title>
+    <title>RoboZaum Dashboard Pro</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -173,6 +173,27 @@
                     <input type="number" id="euro-rate" value="5.50" step="0.01" class="bg-transparent text-sm font-mono w-full focus:outline-none text-white" onchange="manualUpdateRate('eur', this.value)">
                 </div>
             </div>
+
+            <!-- NOVO: Calculadora USC para BRL -->
+            <div>
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs text-secondary font-medium">Calculadora USC → BRL</span>
+                </div>
+                <div class="space-y-2">
+                    <div class="flex items-center gap-2 bg-background rounded-md p-2 border border-border">
+                        <span class="text-secondary text-sm">USC</span>
+                        <input type="number" id="usc-input" value="100" min="0" step="1" class="bg-transparent text-sm font-mono w-full focus:outline-none text-white text-right" oninput="calculateUSCtoBRL()">
+                    </div>
+                    <div class="flex items-center justify-center text-secondary">
+                        <i class="fa-solid fa-arrow-down text-xs"></i>
+                    </div>
+                    <div class="flex items-center gap-2 bg-background rounded-md p-2 border border-border">
+                        <span class="text-secondary text-sm">R$</span>
+                        <span id="brl-result" class="bg-transparent text-sm font-mono w-full text-white text-right">0,00</span>
+                    </div>
+                </div>
+                <p class="text-xs text-secondary mt-1 text-center">1 USC = R$ 0,05</p>
+            </div>
         </div>
     </aside>
 
@@ -338,7 +359,13 @@
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <!-- Equity Curve Projection -->
                     <div class="glass-panel rounded-xl p-6">
-                        <h3 class="text-lg font-bold text-white mb-4">Projeção de Juros Compostos</h3>
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-bold text-white">Projeção de Juros Compostos</h3>
+                            <div class="flex items-center gap-2">
+                                <input type="number" id="projection-rate" value="5.0" step="0.1" min="0" max="50" class="w-16 bg-background border border-border rounded px-2 py-1 text-sm text-white text-right" onchange="updateProjectionChart()">
+                                <span class="text-secondary text-sm">% a.m.</span>
+                            </div>
+                        </div>
                         <div class="h-64">
                             <canvas id="wealthProjectionChart"></canvas>
                         </div>
@@ -349,7 +376,7 @@
                             </div>
                             <div class="flex items-center gap-2">
                                 <div class="w-3 h-3 bg-purple-500 rounded-full border border-dashed border-white/50"></div>
-                                <span class="text-secondary">Projetado (5%/mês)</span>
+                                <span class="text-secondary">Projetado (<span id="projection-rate-display">5</span>%/mês)</span>
                             </div>
                         </div>
                     </div>
@@ -585,12 +612,12 @@
                 configs: [
                     { lot: '0.01', timeframe: 'M5' }
                 ],
-                description: 'Estratégia agressiva em M5',
+                description: 'Estratégia agressiva em M1 e M5',
                 data: [
-                    { month: 'Nov 2025', investment: 3000, profit: 1080, winRate: 65, trades: 45 },
-                    { month: 'Dez 2025', investment: 0, profit: -300, winRate: 68, trades: 42 },
-                    { month: 'Jan 2026', investment: 0, profit: 500, winRate: 45, trades: 30 },
-                    { month: 'Fev 2026', investment: 0, profit: -680, winRate: 70, trades: 50 },
+                    { month: 'Out 2025', investment: 556, profit: 79, winRate: 65, trades: 45 },
+                    { month: 'Nov 2025', investment: 1, profit: 127, winRate: 68, trades: 42 },
+                    { month: 'Dez 2025', investment: 1, profit: 120, winRate: 45, trades: 30 },
+                    { month: 'Jan 2026', investment: 1, profit: 200, winRate: 70, trades: 50 },
                 ]
             },
             {
@@ -602,10 +629,10 @@
                 ],
                 description: 'Operações de médio prazo',
                 data: [
-                    { month: 'Nov 2025', investment: 2000, profit: 560, winRate: 55, trades: 20 },
-                    { month: 'Dez 2025', investment: 0, profit: 400, winRate: 60, trades: 18 },
-                    { month: 'Jan 2026', investment: 0, profit: 420, winRate: 62, trades: 22 },
-                    { month: 'Fev 2026', investment: 3000, profit: 3000, winRate: 65, trades: 15 },
+                    { month: 'Out 2025', investment: 370, profit: 5, winRate: 55, trades: 20 },
+                    { month: 'Nov 2025', investment: 1, profit: 105, winRate: 60, trades: 18 },
+                    { month: 'Dez 2025', investment: 1, profit: 120, winRate: 62, trades: 22 },
+                    { month: 'Jan 2025', investment: 1, profit: 120, winRate: 65, trades: 15 },
                 ]
             }
         ];
@@ -632,6 +659,7 @@
         let robots = [];
         let accounts = [];
         let wealthGoal = 100000;
+        let projectionRate = 5.0; // Taxa de projeção padrão: 5% ao mês
 
         try {
             const storedRobots = localStorage.getItem('robots');
@@ -642,6 +670,9 @@
 
             const storedGoal = localStorage.getItem('wealthGoal');
             if (storedGoal) wealthGoal = parseFloat(storedGoal);
+
+            const storedProjectionRate = localStorage.getItem('projectionRate');
+            if (storedProjectionRate) projectionRate = parseFloat(storedProjectionRate);
 
         } catch (e) {
             console.error('Erro ao carregar dados:', e);
@@ -668,6 +699,11 @@
             document.getElementById('current-date').textContent = new Date().toLocaleDateString('pt-BR');
             document.getElementById('dollar-rate').value = dollarRate.toFixed(2);
             document.getElementById('euro-rate').value = euroRate.toFixed(2);
+            document.getElementById('projection-rate').value = projectionRate.toFixed(1);
+            document.getElementById('projection-rate-display').textContent = projectionRate.toFixed(1);
+            
+            // Inicializar calculadora USC
+            calculateUSCtoBRL();
             
             renderSidebar();
             updateDashboard();
@@ -675,6 +711,50 @@
             // Auto update rates
             updateRates();
         });
+
+        // --- NOVA FUNÇÃO: Calculadora USC para BRL ---
+        function calculateUSCtoBRL() {
+            try {
+                const uscInput = parseFloat(document.getElementById('usc-input').value) || 0;
+                const uscToBRL = dollarRate / 100; // 1 USC = 1 centavo de dólar
+                const brlValue = uscInput * uscToBRL;
+                
+                document.getElementById('brl-result').textContent = brlValue.toLocaleString('pt-BR', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+                
+                // Atualizar informação da taxa
+                document.querySelector('#sidebar p.text-xs.text-secondary.mt-1').textContent = 
+                    `1 USC = R$ ${uscToBRL.toFixed(2)}`;
+                    
+            } catch (error) {
+                console.error("Erro na calculadora USC:", error);
+                document.getElementById('brl-result').textContent = "0,00";
+            }
+        }
+
+        // --- NOVA FUNÇÃO: Atualizar gráfico de projeção ---
+        function updateProjectionChart() {
+            try {
+                const newRate = parseFloat(document.getElementById('projection-rate').value);
+                if (isNaN(newRate) || newRate < 0 || newRate > 50) {
+                    alert("Por favor, insira uma taxa entre 0% e 50%");
+                    document.getElementById('projection-rate').value = projectionRate.toFixed(1);
+                    return;
+                }
+                
+                projectionRate = newRate;
+                localStorage.setItem('projectionRate', projectionRate);
+                document.getElementById('projection-rate-display').textContent = projectionRate.toFixed(1);
+                
+                // Recalcular e atualizar gráfico
+                updateWealth();
+                
+            } catch (error) {
+                console.error("Erro ao atualizar taxa de projeção:", error);
+            }
+        }
 
         // --- MOBILE SIDEBAR ---
         function toggleSidebar() {
@@ -1150,9 +1230,9 @@
 
             if (!ctxProj || !ctxProj.getContext || !ctxHouse || !ctxHouse.getContext) return;
 
-            // Projection Data (Compound Interest)
+            // Projection Data (Compound Interest) - AGORA COM TAXA AJUSTÁVEL
             const months = ['Atual', '+1 Mês', '+2 Meses', '+3 Meses', '+6 Meses', '+12 Meses'];
-            const rate = 0.05; // 5% monthly
+            const rate = projectionRate / 100; // Converter percentual para decimal
             const projected = [currentWealth];
             for(let i=1; i<13; i++) {
                 projected.push(projected[i-1] * (1 + rate));
@@ -1171,7 +1251,7 @@
                 data: {
                     labels: months,
                     datasets: [{
-                        label: 'Projeção (5% a.m.)',
+                        label: `Projeção (${projectionRate.toFixed(1)}% a.m.)`,
                         data: plotData,
                         borderColor: '#8b5cf6',
                         backgroundColor: 'rgba(139, 92, 246, 0.1)',
@@ -1185,7 +1265,18 @@
                     maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
                     scales: {
-                        y: { grid: { color: '#262626' }, ticks: { color: '#9ca3af', callback: v => '$' + v } },
+                        y: { 
+                            grid: { color: '#262626' }, 
+                            ticks: { 
+                                color: '#9ca3af', 
+                                callback: function(value) { 
+                                    return '$' + value.toLocaleString('en-US', {
+                                        minimumFractionDigits: 0,
+                                        maximumFractionDigits: 0
+                                    }); 
+                                } 
+                            } 
+                        },
                         x: { grid: { display: false }, ticks: { color: '#9ca3af' } }
                     }
                 }
@@ -1619,6 +1710,8 @@
                     document.getElementById('euro-rate').value = euroRate.toFixed(2);
                     localStorage.setItem('euroRate', euroRate);
                     
+                    // Atualizar calculadora USC quando a cotação mudar
+                    calculateUSCtoBRL();
                     updateDashboard();
                     updateWealth();
                 }
@@ -1631,6 +1724,8 @@
             if (currency === 'usd') {
                 dollarRate = parseFloat(value);
                 localStorage.setItem('dollarRate', dollarRate);
+                // Atualizar calculadora USC
+                calculateUSCtoBRL();
             } else {
                 euroRate = parseFloat(value);
                 localStorage.setItem('euroRate', euroRate);
@@ -1645,10 +1740,11 @@
                 robots: robots,
                 accounts: accounts,
                 wealthGoal: wealthGoal,
+                projectionRate: projectionRate,
                 selectedRobotIds: selectedRobotIds,
                 dollarRate: dollarRate,
                 euroRate: euroRate,
-                version: 'v6'
+                version: 'v7'
             };
             
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data));
@@ -1680,6 +1776,10 @@
                     if (data.wealthGoal) {
                         wealthGoal = data.wealthGoal;
                         localStorage.setItem('wealthGoal', wealthGoal);
+                    }
+                    if (data.projectionRate) {
+                        projectionRate = data.projectionRate;
+                        localStorage.setItem('projectionRate', projectionRate);
                     }
                     if (data.selectedRobotIds) {
                         selectedRobotIds = data.selectedRobotIds;
